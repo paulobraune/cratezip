@@ -1,0 +1,22 @@
+[
+  {
+    "name": "tracklead-terminal",
+    "host": "155.138.213.38",
+    "port": "22",
+    "username": "tracklead-terminal",
+    "password": "iGL1zK7SWPfGj77aC2WE",
+    "initialPath": "/home",
+    "mode": "filemanager",
+    "createdAt": "2025-03-19T03:06:47.733Z"
+  },
+  {
+    "name": "tracklead-generator",
+    "host": "155.138.213.38",
+    "port": "22",
+    "username": "tracklead-generator",
+    "password": "JncpPygiGrg7JLBURQ35",
+    "initialPath": "/home",
+    "mode": "terminal",
+    "createdAt": "2025-03-19T03:07:45.142Z"
+  }
+]

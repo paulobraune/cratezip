@@ -1,0 +1,2010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSH File Manager</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <style>
+    body {
+      font-family: var(--font-family-base);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background-color: var(--gray-100);
+      overflow: hidden;
+    }
+    
+    .navbar {
+      background-color: var(--primary);
+      padding: 0.75rem 1.5rem;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow);
+      z-index: 10;
+    }
+    
+    .navbar-brand img {
+      height: 35px;
+    }
+    
+    .connection-info {
+      display: flex;
+      align-items: center;
+      font-size: 1rem;
+      background-color: rgba(255, 255, 255, 0.1);
+      padding: 0.5rem 1rem;
+      border-radius: var(--border-radius);
+      margin-left: 1rem;
+    }
+    
+    .connection-badge {
+      display: inline-flex;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.2);
+      color: #fff;
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--border-radius-sm);
+      font-size: var(--font-size-sm);
+      margin-left: 0.5rem;
+    }
+    
+    .connection-badge .status-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #4CAF50;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+    }
+    
+    .navbar-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .main-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem;
+      overflow: hidden;
+    }
+    
+    .file-manager {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: white;
+      border-radius: var(--border-radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    
+    .path-navigation {
+      background-color: var(--gray-100);
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--gray-300);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      flex: 1;
+    }
+    
+    .breadcrumb-item {
+      display: inline-flex;
+      align-items: center;
+    }
+    
+    .breadcrumb-item a {
+      color: var(--primary);
+      text-decoration: none;
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--border-radius-sm);
+      transition: var(--transition-base);
+    }
+    
+    .breadcrumb-item a:hover {
+      background-color: var(--gray-200);
+    }
+    
+    .breadcrumb-separator {
+      color: var(--gray-500);
+      margin: 0 0.25rem;
+    }
+    
+    .path-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .file-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background-color: var(--gray-100);
+      border-bottom: 1px solid var(--gray-300);
+    }
+    
+    .file-action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--white);
+      color: var(--gray-700);
+      border: 1px solid var(--gray-300);
+      border-radius: var(--border-radius-sm);
+      padding: 0.25rem 0.75rem;
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      transition: var(--transition-base);
+    }
+    
+    .file-action-btn:hover {
+      background-color: var(--gray-100);
+      border-color: var(--gray-400);
+    }
+    
+    .file-action-btn svg {
+      margin-right: 0.25rem;
+    }
+    
+    .file-action-btn.btn-danger {
+      background-color: var(--white);
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+    
+    .file-action-btn.btn-danger:hover {
+      background-color: var(--danger);
+      color: var(--white);
+    }
+    
+    .file-action-btn.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    
+    .file-selection-info {
+      margin-left: auto;
+      font-size: var(--font-size-sm);
+      color: var(--gray-600);
+    }
+    
+    .files-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+    
+    .files-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1rem;
+      padding: 0.5rem;
+    }
+    
+    .files-list {
+      display: table;
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .files-list-header {
+      display: table-header-group;
+    }
+    
+    .files-list-header-row {
+      display: table-row;
+      background-color: var(--gray-100);
+      font-weight: bold;
+    }
+    
+    .files-list-header-cell {
+      display: table-cell;
+      padding: 0.5rem;
+      border-bottom: 2px solid var(--gray-300);
+      position: sticky;
+      top: 0;
+      background-color: var(--gray-100);
+      z-index: 1;
+    }
+    
+    .files-list-body {
+      display: table-row-group;
+    }
+    
+    .file-item {
+      display: table-row;
+      cursor: pointer;
+      transition: var(--transition-base);
+    }
+    
+    .file-item:hover {
+      background-color: var(--gray-100);
+    }
+    
+    .file-item.selected {
+      background-color: rgba(0, 92, 160, 0.1);
+    }
+    
+    .file-item-cell {
+      display: table-cell;
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--gray-200);
+      vertical-align: middle;
+    }
+    
+    .file-item-checkbox {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+    
+    .file-item-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      color: var(--gray-600);
+    }
+    
+    .file-item-icon.folder {
+      color: var(--primary);
+    }
+    
+    .file-item-name {
+      display: flex;
+      align-items: center;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .file-item-size, .file-item-date, .file-item-permissions {
+      white-space: nowrap;
+    }
+    
+    .file-item-actions {
+      white-space: nowrap;
+    }
+    
+    .action-icon {
+      color: var(--gray-600);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: var(--border-radius-sm);
+      transition: var(--transition-base);
+    }
+    
+    .action-icon:hover {
+      color: var(--primary);
+      background-color: var(--gray-200);
+    }
+    
+    .action-icon.delete:hover {
+      color: var(--danger);
+    }
+    
+    .stat-label {
+      font-weight: bold;
+      margin-right: 0.5rem;
+    }
+    
+    .upload-area {
+      border: 2px dashed var(--gray-300);
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      text-align: center;
+      background-color: var(--gray-100);
+      transition: var(--transition-base);
+      margin-top: 1rem;
+    }
+    
+    .upload-area:hover, .upload-area.dragover {
+      border-color: var(--primary);
+      background-color: rgba(0, 92, 160, 0.05);
+    }
+    
+    .upload-icon {
+      color: var(--gray-500);
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+    
+    .upload-text {
+      color: var(--gray-700);
+      margin-bottom: 1rem;
+    }
+    
+    .upload-button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius-sm);
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      transition: var(--transition-base);
+    }
+    
+    .upload-button:hover {
+      background-color: var(--primary-dark);
+    }
+    
+    /* Status bar */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      background-color: var(--gray-100);
+      border-top: 1px solid var(--gray-300);
+      font-size: var(--font-size-sm);
+      color: var(--gray-600);
+    }
+    
+    /* Modals */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal.active {
+      display: flex;
+    }
+    
+    .modal-content {
+      background-color: white;
+      border-radius: var(--border-radius-lg);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+      animation: modalFadeIn 0.3s;
+    }
+    
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      border-bottom: 1px solid var(--gray-300);
+    }
+    
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: var(--gray-800);
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--gray-500);
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0.25rem;
+    }
+    
+    .modal-close:hover {
+      color: var(--gray-700);
+    }
+    
+    .modal-body {
+      padding: 1rem;
+    }
+    
+    .modal-footer {
+      padding: 1rem;
+      border-top: 1px solid var(--gray-300);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+    
+    /* Loading spinner */
+    .loading-spinner {
+      display: inline-block;
+      width: 2rem;
+      height: 2rem;
+      border: 0.25rem solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 1s ease-in-out infinite;
+      margin: 0 auto;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Toast notifications */
+    .toast-container {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      z-index: 1000;
+    }
+    
+    .toast {
+      background-color: white;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      padding: 1rem;
+      margin-top: 0.5rem;
+      max-width: 300px;
+      animation: toastFadeIn 0.3s;
+      display: flex;
+      align-items: center;
+    }
+    
+    .toast.success {
+      border-left: 4px solid var(--success);
+    }
+    
+    .toast.error {
+      border-left: 4px solid var(--danger);
+    }
+    
+    .toast.info {
+      border-left: 4px solid var(--info);
+    }
+    
+    @keyframes toastFadeIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .toast-icon {
+      margin-right: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .toast-icon.success {
+      color: var(--success);
+    }
+    
+    .toast-icon.error {
+      color: var(--danger);
+    }
+    
+    .toast-icon.info {
+      color: var(--info);
+    }
+    
+    .toast-message {
+      flex: 1;
+    }
+    
+    .toast-close {
+      background: none;
+      border: none;
+      color: var(--gray-500);
+      cursor: pointer;
+      padding: 0.25rem;
+      margin-left: 0.5rem;
+    }
+    
+    /* Context menu */
+    .context-menu {
+      position: fixed;
+      background-color: white;
+      border-radius: var(--border-radius-sm);
+      box-shadow: var(--shadow);
+      min-width: 150px;
+      z-index: 100;
+      display: none;
+    }
+    
+    .context-menu.active {
+      display: block;
+    }
+    
+    .context-menu-item {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: var(--transition-base);
+    }
+    
+    .context-menu-item:hover {
+      background-color: var(--gray-100);
+    }
+    
+    .context-menu-item.danger {
+      color: var(--danger);
+    }
+    
+    .context-menu-item.danger:hover {
+      background-color: var(--danger);
+      color: white;
+    }
+    
+    .context-menu-item svg {
+      margin-right: 0.5rem;
+    }
+    
+    .context-menu-separator {
+      height: 1px;
+      background-color: var(--gray-300);
+      margin: 0.25rem 0;
+    }
+    
+    /* Responsive styles */
+    @media (max-width: 768px) {
+      .navbar {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0.75rem;
+      }
+      
+      .navbar-brand {
+        margin-bottom: 0.5rem;
+      }
+      
+      .connection-info {
+        margin-left: 0;
+        margin-bottom: 0.5rem;
+        width: 100%;
+        justify-content: space-between;
+      }
+      
+      .navbar-buttons {
+        width: 100%;
+        justify-content: space-between;
+      }
+      
+      .main-container {
+        padding: 0.5rem;
+      }
+      
+      .files-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      }
+      
+      .files-list-header-cell:nth-child(3),
+      .files-list-header-cell:nth-child(4),
+      .file-item-cell:nth-child(3),
+      .file-item-cell:nth-child(4) {
+        display: none;
+      }
+    }
+    
+    /* Selection styling */
+    .select-mode .file-item {
+      user-select: none;
+    }
+    
+    .file-checkbox {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--gray-400);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+    
+    .file-checkbox.checked {
+      background-color: var(--primary);
+      border-color: var(--primary);
+    }
+    
+    .file-checkbox.checked:after {
+      content: '';
+      display: block;
+      width: 6px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+      margin-bottom: 2px;
+    }
+    
+    /* Bulk operation buttons */
+    .bulk-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+    }
+    
+    .bulk-actions.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: all;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="d-flex align-items-center" style="flex-wrap: wrap;">
+      <a class="navbar-brand" href="/">
+        <img src="https://assets.tracklead.com/assets/logo-tracklead-branca.png" alt="TrackLead Logo">
+      </a>
+      <div class="connection-info">
+        <span>SFTP:</span>
+        <strong style="margin-left: 5px;"><%= username %>@<%= host %></strong>
+        <span class="connection-badge">
+          <span class="status-dot"></span>Connected
+        </span>
+      </div>
+    </div>
+    
+    <div class="navbar-buttons">
+      <a href="/terminal?switchMode=true" class="btn btn-sm" style="background-color: rgba(0,0,0,0.2); color: white;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: text-bottom; margin-right: 5px;">
+          <path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9zM3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2z"/>
+          <path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12z"/>
+        </svg>
+        Switch to Terminal
+      </a>
+      <a href="/chat?switchMode=true" class="btn btn-sm" style="background-color: rgba(0,0,0,0.2); color: white;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: text-bottom; margin-right: 5px;">
+          <path d="M5 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+          <path d="m2.165 15.803.02-.004c1.83-.363 2.948-.842 3.468-1.105A9.06 9.06 0 0 0 8 15c4.418 0 8-3.134 8-7s-3.582-7-8-7-8 3.134-8 7c0 1.76.743 3.37 1.97 4.6a10.437 10.437 0 0 1-.524 2.318l-.003.011a10.722 10.722 0 0 1-.244.637c-.079.186.074.394.273.362a21.673 21.673 0 0 0 .693-.125zm.8-3.108a1 1 0 0 0-.287-.801C1.618 10.83 1 9.468 1 8c0-3.192 3.004-6 7-6s7 2.808 7 6c0 3.193-3.004 6-7 6a8.06 8.06 0 0 1-2.088-.272 1 1 0 0 0-.711.074c-.387.196-1.24.57-2.634.893a10.97 10.97 0 0 0 .398-2z"/>
+        </svg>
+        Switch to AI Chat
+      </a>
+      <a href="/disconnect" class="btn btn-sm" style="background-color: rgba(0,0,0,0.2); color: white;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: text-bottom; margin-right: 5px;">
+          <path fill-rule="evenodd" d="M8 3a5 5 0 0 0-5 5v1h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a6 6 0 1 1 12 0v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1V8a5 5 0 0 0-5-5z"/>
+        </svg>
+        Disconnect
+      </a>
+      <a href="/logout" class="btn btn-sm" style="background-color: var(--danger); color: white;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: text-bottom; margin-right: 5px;">
+          <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+          <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+        </svg>
+        Logout
+      </a>
+    </div>
+  </nav>
+  
+  <div class="main-container">
+    <div class="file-manager">
+      <div class="path-navigation">
+        <div class="breadcrumb" id="path-breadcrumb">
+          <!-- Breadcrumb items will be generated dynamically -->
+        </div>
+        
+        <div class="path-controls">
+          <button id="refresh-btn" class="file-action-btn" title="Refresh">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+              <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+            </svg>
+            Refresh
+          </button>
+          <button id="select-all-btn" class="file-action-btn" title="Select All">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+              <path d="M10.97 4.97a.75.75 0 0 1 1.071 1.05l-3.992 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.235.235 0 0 1 .02-.022z"/>
+            </svg>
+            Select All
+          </button>
+          <button id="parent-dir-btn" class="file-action-btn" title="Go to Parent Directory">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path fill-rule="evenodd" d="M8 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L7.5 2.707V14.5a.5.5 0 0 0 .5.5z"/>
+            </svg>
+            Up
+          </button>
+        </div>
+      </div>
+      
+      <div class="file-actions">
+        <button id="upload-btn" class="file-action-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+            <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
+          </svg>
+          Upload
+        </button>
+        <button id="new-folder-btn" class="file-action-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M.5 3l.04.87a1.99 1.99 0 0 0-.342 1.311l.637 7A2 2 0 0 0 2.826 14H9v-1H2.826a1 1 0 0 1-.995-.91l-.637-7A1 1 0 0 1 2.19 4h11.62a1 1 0 0 1 .996 1.09L14.54 8h1.005l.256-2.819A2 2 0 0 0 13.81 3H9.828a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 6.172 1H2.5a2 2 0 0 0-2 2zm5.672-1a1 1 0 0 1 .707.293L7.586 3H2.19c-.24 0-.47.042-.684.12L1.5 2.98a1 1 0 0 1 1-.98h3.672z"/>
+            <path d="M13.5 10a.5.5 0 0 1 .5.5V12h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V13h-1.5a.5.5 0 0 1 0-1H13v-1.5a.5.5 0 0 1 .5-.5z"/>
+          </svg>
+          New Folder
+        </button>
+        
+        <!-- Bulk action buttons - initially hidden until files are selected -->
+        <div class="bulk-actions" id="bulk-actions">
+          <button id="download-selected-btn" class="file-action-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+              <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+            </svg>
+            Download
+          </button>
+          <button id="zip-selected-btn" class="file-action-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M9.293 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.707A1 1 0 0 0 13.707 4L10 .293A1 1 0 0 0 9.293 0zM9.5 3.5v-2l3 3h-2a1 1 0 0 1-1-1zM3 9h4v1H3v2h4v1H3v1h5a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H3v2z"/>
+            </svg>
+            Create ZIP
+          </button>
+          <button id="delete-selected-btn" class="file-action-btn btn-danger">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+              <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+            </svg>
+            Delete
+          </button>
+        </div>
+        
+        <div class="file-selection-info" id="selection-info"></div>
+      </div>
+      
+      <div class="files-container">
+        <div class="files-list" id="files-list">
+          <div class="files-list-header">
+            <div class="files-list-header-row">
+              <div class="files-list-header-cell" style="width: 30px;"></div>
+              <div class="files-list-header-cell" style="width: 30px;"></div>
+              <div class="files-list-header-cell">Name</div>
+              <div class="files-list-header-cell" style="width: 100px;">Size</div>
+              <div class="files-list-header-cell" style="width: 180px;">Modified</div>
+              <div class="files-list-header-cell" style="width: 100px;">Permissions</div>
+              <div class="files-list-header-cell" style="width: 100px;">Actions</div>
+            </div>
+          </div>
+          <div class="files-list-body" id="files-list-body">
+            <!-- File items will be generated dynamically -->
+          </div>
+        </div>
+      </div>
+      
+      <div class="status-bar">
+        <div id="status-text">Ready</div>
+        <div id="item-count">0 items</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Upload modal -->
+  <div class="modal" id="upload-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">Upload Files</div>
+        <button class="modal-close" id="upload-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="upload-area" id="upload-area">
+          <div class="upload-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+              <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
+            </svg>
+          </div>
+          <div class="upload-text">Drag and drop files here or click to select files</div>
+          <input type="file" id="file-input" multiple style="display: none;">
+          <button class="upload-button" id="select-files-btn">Select Files</button>
+        </div>
+        <div id="upload-progress" style="margin-top: 1rem; display: none;">
+          <div id="upload-status"></div>
+          <div class="progress" style="margin-top: 0.5rem; height: 10px; border-radius: 5px; overflow: hidden; background-color: var(--gray-200);">
+            <div id="progress-bar" style="height: 100%; background-color: var(--primary); width: 0%; transition: width 0.2s;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="cancel-upload-btn">Cancel</button>
+        <button class="btn btn-primary" id="start-upload-btn">Upload</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- New folder modal -->
+  <div class="modal" id="new-folder-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">Create New Folder</div>
+        <button class="modal-close" id="new-folder-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="folder-name" class="form-label">Folder Name</label>
+          <input type="text" id="folder-name" class="form-control" placeholder="Enter folder name">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="cancel-folder-btn">Cancel</button>
+        <button class="btn btn-primary" id="create-folder-btn">Create</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Delete confirmation modal -->
+  <div class="modal" id="delete-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">Confirm Deletion</div>
+        <button class="modal-close" id="delete-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <span id="delete-item-count">these items</span>?</p>
+        <p class="text-danger">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="cancel-delete-btn">Cancel</button>
+        <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Rename modal -->
+  <div class="modal" id="rename-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">Rename</div>
+        <button class="modal-close" id="rename-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="new-name" class="form-label">New Name</label>
+          <input type="text" id="new-name" class="form-control" placeholder="Enter new name">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="cancel-rename-btn">Cancel</button>
+        <button class="btn btn-primary" id="confirm-rename-btn">Rename</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Context menu -->
+  <div class="context-menu" id="context-menu">
+    <div class="context-menu-item" id="context-open">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M8.5 6.5a.5.5 0 0 0-1 0v3.793L6.354 9.146a.5.5 0 1 0-.708.708l2 2a.5.5 0 0 0 .708 0l2-2a.5.5 0 0 0-.708-.708L8.5 10.293V6.5z"/>
+        <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/>
+      </svg>
+      Open
+    </div>
+    <div class="context-menu-item" id="context-download">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+      </svg>
+      Download
+    </div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item" id="context-rename">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+      </svg>
+      Rename
+    </div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item danger" id="context-delete">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+        <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+      </svg>
+      Delete
+    </div>
+  </div>
+  
+  <!-- Toast container -->
+  <div class="toast-container" id="toast-container"></div>
+  
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Generate a session ID
+      const sessionId = Math.random().toString(36).substring(2, 15);
+      
+      // Connect to Socket.IO
+      const socket = io({
+        query: {
+          sessionId: sessionId
+        }
+      });
+      
+      // File manager state
+      let currentPath = '<%= initialPath %>';
+      let filesList = [];
+      let selectedFiles = [];
+      let clipboard = null;
+      
+      // DOM Elements
+      const pathBreadcrumb = document.getElementById('path-breadcrumb');
+      const filesListBody = document.getElementById('files-list-body');
+      const statusText = document.getElementById('status-text');
+      const itemCount = document.getElementById('item-count');
+      const selectionInfo = document.getElementById('selection-info');
+      const bulkActions = document.getElementById('bulk-actions');
+      
+      // Buttons
+      const refreshBtn = document.getElementById('refresh-btn');
+      const parentDirBtn = document.getElementById('parent-dir-btn');
+      const selectAllBtn = document.getElementById('select-all-btn');
+      const uploadBtn = document.getElementById('upload-btn');
+      const newFolderBtn = document.getElementById('new-folder-btn');
+      const downloadSelectedBtn = document.getElementById('download-selected-btn');
+      const zipSelectedBtn = document.getElementById('zip-selected-btn');
+      const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+      
+      // Modals
+      const uploadModal = document.getElementById('upload-modal');
+      const uploadModalClose = document.getElementById('upload-modal-close');
+      const uploadArea = document.getElementById('upload-area');
+      const fileInput = document.getElementById('file-input');
+      const selectFilesBtn = document.getElementById('select-files-btn');
+      const startUploadBtn = document.getElementById('start-upload-btn');
+      const cancelUploadBtn = document.getElementById('cancel-upload-btn');
+      const uploadProgress = document.getElementById('upload-progress');
+      const uploadStatus = document.getElementById('upload-status');
+      const progressBar = document.getElementById('progress-bar');
+      
+      const newFolderModal = document.getElementById('new-folder-modal');
+      const newFolderModalClose = document.getElementById('new-folder-modal-close');
+      const folderNameInput = document.getElementById('folder-name');
+      const createFolderBtn = document.getElementById('create-folder-btn');
+      const cancelFolderBtn = document.getElementById('cancel-folder-btn');
+      
+      const deleteModal = document.getElementById('delete-modal');
+      const deleteModalClose = document.getElementById('delete-modal-close');
+      const deleteItemCount = document.getElementById('delete-item-count');
+      const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+      const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+      
+      const renameModal = document.getElementById('rename-modal');
+      const renameModalClose = document.getElementById('rename-modal-close');
+      const newNameInput = document.getElementById('new-name');
+      const confirmRenameBtn = document.getElementById('confirm-rename-btn');
+      const cancelRenameBtn = document.getElementById('cancel-rename-btn');
+      
+      const contextMenu = document.getElementById('context-menu');
+      const contextOpen = document.getElementById('context-open');
+      const contextDownload = document.getElementById('context-download');
+      const contextRename = document.getElementById('context-rename');
+      const contextDelete = document.getElementById('context-delete');
+      
+      // Keep track of context menu target
+      let contextMenuTarget = null;
+      
+      // Connect to SFTP when page loads
+      socket.emit('connect-sftp', {
+        sshConfig: {
+          host: '<%= host %>',
+          port: <%= port || 22 %>,
+          username: '<%= username %>',
+          password: '<%= typeof password !== "undefined" ? password : "" %>'
+        },
+        initialPath: '<%= initialPath %>'
+      });
+      
+      // Handle SFTP connection success
+      socket.on('sftp-connected', data => {
+        // Set initial path
+        currentPath = data.initialPath;
+        
+        // Show initial directory contents
+        loadDirectory(currentPath);
+        
+        // Show success toast
+        showToast('Connected to SFTP server', 'success');
+      });
+      
+      // Handle SFTP errors
+      socket.on('sftp-error', message => {
+        console.error('SFTP error:', message);
+        showToast(message, 'error');
+      });
+      
+      // Handle directory listing
+      socket.on('directory-list', data => {
+        filesList = data.files;
+        renderFilesList();
+        updateBreadcrumb();
+        updateStatus();
+      });
+      
+      // Update UI after file operations
+      socket.on('delete-complete', () => {
+        showToast('Deletion completed successfully', 'success');
+        loadDirectory(currentPath);
+      });
+      
+      socket.on('rename-complete', () => {
+        showToast('File renamed successfully', 'success');
+        loadDirectory(currentPath);
+      });
+      
+      socket.on('folder-created', () => {
+        showToast('Folder created successfully', 'success');
+        loadDirectory(currentPath);
+        closeNewFolderModal();
+      });
+      
+      socket.on('upload-complete', () => {
+        showToast('File uploaded successfully', 'success');
+        loadDirectory(currentPath);
+      });
+      
+      socket.on('zip-started', data => {
+        showToast('Creating ZIP file...', 'info');
+      });
+      
+      // Utility functions
+      function loadDirectory(path) {
+        socket.emit('list-directory', { path });
+        statusText.textContent = 'Loading...';
+      }
+      
+      function updateBreadcrumb() {
+        // Clear existing breadcrumb
+        pathBreadcrumb.innerHTML = '';
+        
+        // Split the path into segments
+        const segments = currentPath.split('/').filter(segment => segment.length > 0);
+        
+        // Create root element
+        const rootItem = document.createElement('li');
+        rootItem.className = 'breadcrumb-item';
+        const rootLink = document.createElement('a');
+        rootLink.href = '#';
+        rootLink.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L8 2.207l6.646 6.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.707 1.5Z"/><path d="m8 3.293 6 6V13.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 13.5V9.293l6-6Z"/></svg>';
+        rootLink.addEventListener('click', e => {
+          e.preventDefault();
+          currentPath = '/';
+          loadDirectory(currentPath);
+        });
+        rootItem.appendChild(rootLink);
+        pathBreadcrumb.appendChild(rootItem);
+        
+        // Build the path segments
+        let currentSegmentPath = '';
+        segments.forEach((segment, index) => {
+          // Add separator
+          const separatorSpan = document.createElement('span');
+          separatorSpan.className = 'breadcrumb-separator';
+          separatorSpan.textContent = '/';
+          pathBreadcrumb.appendChild(separatorSpan);
+          
+          // Add segment
+          const segmentItem = document.createElement('li');
+          segmentItem.className = 'breadcrumb-item';
+          const segmentLink = document.createElement('a');
+          segmentLink.href = '#';
+          segmentLink.textContent = segment;
+          
+          // Build the path for this segment
+          currentSegmentPath += '/' + segment;
+          const segmentPath = currentSegmentPath;
+          
+          // Add click event
+          segmentLink.addEventListener('click', e => {
+            e.preventDefault();
+            currentPath = segmentPath;
+            loadDirectory(currentPath);
+          });
+          
+          segmentItem.appendChild(segmentLink);
+          pathBreadcrumb.appendChild(segmentItem);
+        });
+      }
+      
+      function renderFilesList() {
+        // Clear the existing file list
+        filesListBody.innerHTML = '';
+        
+        // Sort files: directories first, then alphabetically
+        const sortedFiles = [...filesList].sort((a, b) => {
+          if (a.isDirectory && !b.isDirectory) return -1;
+          if (!a.isDirectory && b.isDirectory) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        
+        // Add parent directory entry if not at root
+        if (currentPath !== '/') {
+          const parentDir = {
+            name: '..',
+            isDirectory: true,
+            isParentDir: true,
+            size: 0,
+            modifyTime: null,
+            permissions: ''
+          };
+          sortedFiles.unshift(parentDir);
+        }
+        
+        // Add file entries
+        sortedFiles.forEach(file => {
+          const fileItem = document.createElement('div');
+          fileItem.className = 'file-item';
+          fileItem.dataset.name = file.name;
+          fileItem.dataset.isDirectory = file.isDirectory;
+          fileItem.dataset.path = file.isParentDir 
+              ? currentPath.split('/').slice(0, -1).join('/') || '/' 
+              : currentPath + '/' + file.name;
+          
+          // Create checkbox cell
+          const checkboxCell = document.createElement('div');
+          checkboxCell.className = 'file-item-cell';
+          
+          if (!file.isParentDir) {
+            const checkbox = document.createElement('div');
+            checkbox.className = 'file-checkbox';
+            checkbox.addEventListener('click', (e) => {
+              e.stopPropagation();
+              toggleFileSelection(fileItem);
+            });
+            checkboxCell.appendChild(checkbox);
+          }
+          
+          // Create icon cell
+          const iconCell = document.createElement('div');
+          iconCell.className = 'file-item-cell';
+          
+          const iconContainer = document.createElement('div');
+          iconContainer.className = file.isDirectory 
+              ? 'file-item-icon folder' 
+              : 'file-item-icon';
+          
+          const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          icon.setAttribute('width', '16');
+          icon.setAttribute('height', '16');
+          icon.setAttribute('fill', 'currentColor');
+          icon.setAttribute('viewBox', '0 0 16 16');
+          
+          if (file.isDirectory) {
+            // Folder icon
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', 'M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31zM2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4H2.19zm4.69-1.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981l.006.139C1.72 3.042 1.95 3 2.19 3h5.396l-.707-.707z');
+            icon.appendChild(path);
+          } else {
+            // File icon
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', 'M4 0h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H4z');
+            icon.appendChild(path);
+          }
+          
+          iconContainer.appendChild(icon);
+          iconCell.appendChild(iconContainer);
+          
+          // Create name cell
+          const nameCell = document.createElement('div');
+          nameCell.className = 'file-item-cell';
+          
+          const nameContainer = document.createElement('div');
+          nameContainer.className = 'file-item-name';
+          nameContainer.textContent = file.name;
+          nameCell.appendChild(nameContainer);
+          
+          // Create size cell
+          const sizeCell = document.createElement('div');
+          sizeCell.className = 'file-item-cell file-item-size';
+          sizeCell.textContent = file.isDirectory ? '-' : formatSize(file.size);
+          
+          // Create date cell
+          const dateCell = document.createElement('div');
+          dateCell.className = 'file-item-cell file-item-date';
+          dateCell.textContent = file.modifyTime ? formatDate(file.modifyTime) : '-';
+          
+          // Create permissions cell
+          const permissionsCell = document.createElement('div');
+          permissionsCell.className = 'file-item-cell file-item-permissions';
+          permissionsCell.textContent = file.permissions ? formatPermissions(file.permissions) : '-';
+          
+          // Create actions cell
+          const actionsCell = document.createElement('div');
+          actionsCell.className = 'file-item-cell file-item-actions';
+          
+          if (!file.isParentDir) {
+            // Download button
+            if (!file.isDirectory) {
+              const downloadBtn = document.createElement('button');
+              downloadBtn.className = 'action-icon';
+              downloadBtn.title = 'Download';
+              downloadBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>';
+              downloadBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                downloadFile(file);
+              });
+              actionsCell.appendChild(downloadBtn);
+            }
+            
+            // Rename button
+            const renameBtn = document.createElement('button');
+            renameBtn.className = 'action-icon';
+            renameBtn.title = 'Rename';
+            renameBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>';
+            renameBtn.addEventListener('click', e => {
+              e.stopPropagation();
+              showRenameModal(file);
+            });
+            actionsCell.appendChild(renameBtn);
+            
+            // Delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'action-icon delete';
+            deleteBtn.title = 'Delete';
+            deleteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>';
+            deleteBtn.addEventListener('click', e => {
+              e.stopPropagation();
+              deleteFiles([file]);
+            });
+            actionsCell.appendChild(deleteBtn);
+          }
+          
+          // Add cells to file item
+          fileItem.appendChild(checkboxCell);
+          fileItem.appendChild(iconCell);
+          fileItem.appendChild(nameCell);
+          fileItem.appendChild(sizeCell);
+          fileItem.appendChild(dateCell);
+          fileItem.appendChild(permissionsCell);
+          fileItem.appendChild(actionsCell);
+          
+          // Add click event to open directory or file
+          fileItem.addEventListener('click', () => {
+            if (file.isDirectory) {
+              currentPath = fileItem.dataset.path;
+              loadDirectory(currentPath);
+            } else {
+              // For files, we could show a preview or download
+              downloadFile(file);
+            }
+          });
+          
+          // Add right-click context menu
+          fileItem.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            showContextMenu(e, file);
+          });
+          
+          // Add to file list
+          filesListBody.appendChild(fileItem);
+        });
+        
+        // Update selection UI in case any previously selected files are no longer in the list
+        updateSelectionUI();
+      }
+      
+      function updateStatus() {
+        const fileCount = filesList.length;
+        itemCount.textContent = `${fileCount} item${fileCount !== 1 ? 's' : ''}`;
+        statusText.textContent = 'Ready';
+      }
+      
+      function formatSize(size) {
+        if (size < 1024) {
+          return size + ' B';
+        } else if (size < 1024 * 1024) {
+          return (size / 1024).toFixed(1) + ' KB';
+        } else if (size < 1024 * 1024 * 1024) {
+          return (size / (1024 * 1024)).toFixed(1) + ' MB';
+        } else {
+          return (size / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+        }
+      }
+      
+      function formatDate(date) {
+        if (!(date instanceof Date)) {
+          date = new Date(date);
+        }
+        
+        if (isNaN(date.getTime())) {
+          return 'Invalid date';
+        }
+        
+        return date.toLocaleString();
+      }
+      
+      function formatPermissions(mode) {
+        // Simple conversion - in a real app, this would be more comprehensive
+        const octal = mode.toString(8).slice(-3);
+        return octal;
+      }
+      
+      function showContextMenu(e, file) {
+        // Position menu at click position
+        contextMenu.style.left = e.pageX + 'px';
+        contextMenu.style.top = e.pageY + 'px';
+        
+        // Store the target file
+        contextMenuTarget = file;
+        
+        // Show/hide appropriate menu items
+        contextOpen.style.display = file.isDirectory ? 'flex' : 'none';
+        contextDownload.style.display = !file.isDirectory ? 'flex' : 'none';
+        
+        // Hide the menu for parent directory
+        if (file.isParentDir) {
+          return;
+        }
+        
+        // Show the menu
+        contextMenu.classList.add('active');
+        
+        // Hide on click outside
+        const hideMenu = () => {
+          contextMenu.classList.remove('active');
+          document.removeEventListener('click', hideMenu);
+        };
+        
+        // Add a small delay before adding the click listener
+        setTimeout(() => {
+          document.addEventListener('click', hideMenu);
+        }, 10);
+      }
+      
+      function showToast(message, type = 'info') {
+        const toastContainer = document.getElementById('toast-container');
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        const toastIcon = document.createElement('div');
+        toastIcon.className = `toast-icon ${type}`;
+        
+        const iconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        iconSvg.setAttribute('width', '16');
+        iconSvg.setAttribute('height', '16');
+        iconSvg.setAttribute('fill', 'currentColor');
+        iconSvg.setAttribute('viewBox', '0 0 16 16');
+        
+        if (type === 'success') {
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', 'M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z');
+          iconSvg.appendChild(path);
+        } else if (type === 'error') {
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', 'M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293 5.354 4.646z');
+          iconSvg.appendChild(path);
+        } else { // info
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', 'M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z');
+          iconSvg.appendChild(path);
+        }
+        
+        toastIcon.appendChild(iconSvg);
+        
+        const toastMessage = document.createElement('div');
+        toastMessage.className = 'toast-message';
+        toastMessage.textContent = message;
+        
+        const toastClose = document.createElement('button');
+        toastClose.className = 'toast-close';
+        toastClose.innerHTML = '&times;';
+        toastClose.addEventListener('click', () => {
+          toast.remove();
+        });
+        
+        toast.appendChild(toastIcon);
+        toast.appendChild(toastMessage);
+        toast.appendChild(toastClose);
+        
+        toastContainer.appendChild(toast);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+          if (toast.parentElement) {
+            toast.remove();
+          }
+        }, 5000);
+      }
+      
+      // Modal functions
+      function showUploadModal() {
+        uploadModal.classList.add('active');
+        uploadProgress.style.display = 'none';
+        progressBar.style.width = '0%';
+        fileInput.value = '';
+      }
+      
+      function closeUploadModal() {
+        uploadModal.classList.remove('active');
+      }
+      
+      function showNewFolderModal() {
+        newFolderModal.classList.add('active');
+        folderNameInput.value = '';
+        setTimeout(() => folderNameInput.focus(), 100);
+      }
+      
+      function closeNewFolderModal() {
+        newFolderModal.classList.remove('active');
+      }
+      
+      function showDeleteModal(files) {
+        deleteModal.classList.add('active');
+        const count = files.length;
+        deleteItemCount.textContent = count === 1 
+          ? `"${files[0].name}"` 
+          : `${count} items`;
+        
+        // Update the confirm button action
+        confirmDeleteBtn.onclick = () => {
+          deleteFilesConfirmed(files);
+          closeDeleteModal();
+        };
+      }
+      
+      function closeDeleteModal() {
+        deleteModal.classList.remove('active');
+      }
+      
+      function showRenameModal(file) {
+        renameModal.classList.add('active');
+        newNameInput.value = file.name;
+        setTimeout(() => {
+          newNameInput.focus();
+          newNameInput.select();
+        }, 100);
+        
+        // Update the confirm button action
+        confirmRenameBtn.onclick = () => {
+          const newName = newNameInput.value.trim();
+          if (newName && newName !== file.name) {
+            renameFile(file, newName);
+          }
+          closeRenameModal();
+        };
+      }
+      
+      function closeRenameModal() {
+        renameModal.classList.remove('active');
+      }
+      
+      // File operations
+      function downloadFile(file) {
+        const filePath = currentPath + '/' + file.name;
+        const downloadUrl = `/file/download?path=${encodeURIComponent(filePath)}&sessionId=${sessionId}`;
+        
+        // Create a hidden link and click it to trigger download
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showToast(`Downloading ${file.name}...`, 'info');
+      }
+      
+      function renameFile(file, newName) {
+        const oldPath = currentPath + '/' + file.name;
+        const newPath = currentPath + '/' + newName;
+        
+        socket.emit('rename-file', {
+          oldPath,
+          newPath
+        });
+        
+        showToast(`Renaming ${file.name}...`, 'info');
+      }
+      
+      function createFolder(folderName) {
+        if (!folderName) return;
+        
+        const path = currentPath + '/' + folderName;
+        socket.emit('create-folder', { path });
+        
+        showToast(`Creating folder ${folderName}...`, 'info');
+      }
+      
+      function deleteFiles(files) {
+        if (files.length === 0) return;
+        
+        showDeleteModal(files);
+      }
+      
+      function deleteFilesConfirmed(files) {
+        if (files.length === 0) return;
+        
+        const paths = files.map(file => currentPath + '/' + file.name);
+        
+        // Delete one by one
+        let deleteCount = 0;
+        
+        function deleteNext() {
+          if (deleteCount >= paths.length) {
+            showToast(`Deleted ${paths.length} item${paths.length !== 1 ? 's' : ''}`, 'success');
+            loadDirectory(currentPath);
+            return;
+          }
+          
+          const path = paths[deleteCount];
+          const file = files[deleteCount];
+          
+          socket.emit('delete-file', {
+            path,
+            isDirectory: file.isDirectory
+          });
+          
+          deleteCount++;
+          setTimeout(deleteNext, 100);
+        }
+        
+        showToast(`Deleting ${paths.length} item${paths.length !== 1 ? 's' : ''}...`, 'info');
+        deleteNext();
+      }
+      
+      // Selection functions
+      function toggleFileSelection(fileItem) {
+        const fileName = fileItem.dataset.name;
+        const isDirectory = fileItem.dataset.isDirectory === 'true';
+        
+        // Don't allow selecting parent directory
+        if (fileName === '..') return;
+        
+        const file = filesList.find(f => f.name === fileName);
+        if (!file) return;
+        
+        const index = selectedFiles.findIndex(f => f.name === fileName);
+        
+        if (index === -1) {
+          // Add to selection
+          selectedFiles.push(file);
+          fileItem.classList.add('selected');
+          const checkbox = fileItem.querySelector('.file-checkbox');
+          if (checkbox) checkbox.classList.add('checked');
+        } else {
+          // Remove from selection
+          selectedFiles.splice(index, 1);
+          fileItem.classList.remove('selected');
+          const checkbox = fileItem.querySelector('.file-checkbox');
+          if (checkbox) checkbox.classList.remove('checked');
+        }
+        
+        updateSelectionUI();
+      }
+      
+      function updateSelectionUI() {
+        if (selectedFiles.length > 0) {
+          selectionInfo.textContent = `${selectedFiles.length} item${selectedFiles.length !== 1 ? 's' : ''} selected`;
+          bulkActions.classList.add('active');
+        } else {
+          selectionInfo.textContent = '';
+          bulkActions.classList.remove('active');
+        }
+      }
+      
+      function selectAllFiles() {
+        if (selectedFiles.length === filesList.length) {
+          // If all files are selected, deselect all
+          selectedFiles = [];
+          document.querySelectorAll('.file-item').forEach(item => {
+            item.classList.remove('selected');
+            const checkbox = item.querySelector('.file-checkbox');
+            if (checkbox) checkbox.classList.remove('checked');
+          });
+        } else {
+          // Select all files
+          selectedFiles = [...filesList];
+          document.querySelectorAll('.file-item').forEach(item => {
+            if (item.dataset.name !== '..') {
+              item.classList.add('selected');
+              const checkbox = item.querySelector('.file-checkbox');
+              if (checkbox) checkbox.classList.add('checked');
+            }
+          });
+        }
+        
+        updateSelectionUI();
+      }
+      
+      function downloadSelectedFiles() {
+        if (selectedFiles.length === 0) return;
+        
+        // If only one file is selected, use the normal download function
+        if (selectedFiles.length === 1 && !selectedFiles[0].isDirectory) {
+          downloadFile(selectedFiles[0]);
+          return;
+        }
+        
+        // For multiple files or directories, create a zip
+        showToast('Creating ZIP file for download...', 'info');
+        
+        // Use the zip-directory endpoint to create a zip file
+        const paths = selectedFiles.map(file => currentPath + '/' + file.name);
+        
+        const formData = new FormData();
+        formData.append('sessionId', sessionId);
+        formData.append('path', currentPath);
+        
+        fetch('/file/zip-download', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to create ZIP file');
+          }
+          
+          // Create a temporary link to download the zip
+          const link = document.createElement('a');
+          link.href = window.URL.createObjectURL(response);
+          link.download = 'download.zip';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          showToast('Download started', 'success');
+        })
+        .catch(error => {
+          console.error('Download error:', error);
+          showToast('Failed to create ZIP file: ' + error.message, 'error');
+        });
+      }
+      
+      function zipSelectedFiles() {
+        if (selectedFiles.length === 0) return;
+        
+        showToast('Creating archive.zip in current directory...', 'info');
+        
+        // First, create a temporary directory to store the files
+        const tempDirName = '__temp_zip_' + Date.now();
+        const tempDirPath = currentPath + '/' + tempDirName;
+        
+        // Create temp directory
+        socket.emit('create-folder', { path: tempDirPath });
+        
+        // Listen for folder creation completion
+        const tempFolderCreatedListener = () => {
+          socket.off('folder-created', tempFolderCreatedListener);
+          
+          // Copy all selected files to temp directory
+          let copyCount = 0;
+          
+          function copyNext() {
+            if (copyCount >= selectedFiles.length) {
+              // All files copied, create zip
+              createZipFromTempDir();
+              return;
+            }
+            
+            const file = selectedFiles[copyCount];
+            const sourcePath = currentPath + '/' + file.name;
+            const destPath = tempDirPath + '/' + file.name;
+            
+            // Since we don't have a direct copy function in the socket API,
+            // we'll create a simplified version - in a real app, you'd implement
+            // a proper copy operation on the server
+            
+            if (file.isDirectory) {
+              // For directories, we'll need to implement recursive copy
+              // For this demo, we'll skip directories
+              copyCount++;
+              setTimeout(copyNext, 10);
+            } else {
+              // For files, we can download and then upload to the new location
+              fetch(`/file/content?path=${encodeURIComponent(sourcePath)}&sessionId=${sessionId}`)
+                .then(response => response.json())
+                .then(data => {
+                  // Upload to new location
+                  socket.emit('save-file', {
+                    path: destPath,
+                    content: data.content
+                  });
+                  
+                  copyCount++;
+                  setTimeout(copyNext, 100);
+                })
+                .catch(error => {
+                  console.error('Copy error:', error);
+                  copyCount++;
+                  setTimeout(copyNext, 10);
+                });
+            }
+          }
+          
+          // Start copying files
+          copyNext();
+        };
+        
+        socket.on('folder-created', tempFolderCreatedListener);
+        
+        function createZipFromTempDir() {
+          // Now create a ZIP of the temp directory
+          socket.emit('zip-directory', { path: tempDirPath });
+          
+          // Rename the resulting ZIP file to archive.zip
+          setTimeout(() => {
+            socket.emit('rename-file', {
+              oldPath: tempDirPath + '.zip',
+              newPath: currentPath + '/archive.zip'
+            });
+            
+            // Delete the temp directory
+            setTimeout(() => {
+              socket.emit('delete-file', {
+                path: tempDirPath,
+                isDirectory: true
+              });
+              
+              // Refresh the file list
+              showToast('Archive created successfully', 'success');
+              loadDirectory(currentPath);
+            }, 500);
+          }, 1000);
+        }
+      }
+      
+      // Event listeners
+      refreshBtn.addEventListener('click', () => {
+        loadDirectory(currentPath);
+      });
+      
+      parentDirBtn.addEventListener('click', () => {
+        if (currentPath === '/') return;
+        
+        const segments = currentPath.split('/').filter(s => s);
+        segments.pop();
+        currentPath = segments.length > 0 ? '/' + segments.join('/') : '/';
+        loadDirectory(currentPath);
+      });
+      
+      selectAllBtn.addEventListener('click', selectAllFiles);
+      
+      uploadBtn.addEventListener('click', showUploadModal);
+      uploadModalClose.addEventListener('click', closeUploadModal);
+      cancelUploadBtn.addEventListener('click', closeUploadModal);
+      
+      selectFilesBtn.addEventListener('click', () => {
+        fileInput.click();
+      });
+      
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+          uploadArea.querySelector('.upload-text').textContent = 
+            fileInput.files.length === 1
+              ? '1 file selected'
+              : `${fileInput.files.length} files selected`;
+        }
+      });
+      
+      // Drag and drop handling
+      uploadArea.addEventListener('dragover', e => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+      });
+      
+      uploadArea.addEventListener('dragleave', e => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+      });
+      
+      uploadArea.addEventListener('drop', e => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        
+        if (e.dataTransfer.files.length > 0) {
+          fileInput.files = e.dataTransfer.files;
+          uploadArea.querySelector('.upload-text').textContent = 
+            fileInput.files.length === 1
+              ? '1 file selected'
+              : `${fileInput.files.length} files selected`;
+        }
+      });
+      
+      startUploadBtn.addEventListener('click', () => {
+        if (!fileInput.files || fileInput.files.length === 0) {
+          showToast('No files selected', 'error');
+          return;
+        }
+        
+        uploadProgress.style.display = 'block';
+        progressBar.style.width = '0%';
+        
+        let uploadedCount = 0;
+        const totalFiles = fileInput.files.length;
+        
+        function uploadNextFile(index) {
+          if (index >= totalFiles) {
+            uploadStatus.textContent = 'Upload complete!';
+            progressBar.style.width = '100%';
+            setTimeout(closeUploadModal, 1000);
+            loadDirectory(currentPath);
+            return;
+          }
+          
+          const file = fileInput.files[index];
+          const reader = new FileReader();
+          
+          reader.onload = function(e) {
+            const fileData = e.target.result;
+            
+            // Upload the file
+            socket.emit('upload-file', {
+              path: currentPath + '/' + file.name,
+              data: fileData
+            });
+            
+            uploadedCount++;
+            const progress = Math.floor((uploadedCount / totalFiles) * 100);
+            progressBar.style.width = progress + '%';
+            uploadStatus.textContent = `Uploading ${uploadedCount}/${totalFiles}: ${file.name}`;
+            
+            setTimeout(() => uploadNextFile(index + 1), 100);
+          };
+          
+          reader.readAsArrayBuffer(file);
+        }
+        
+        uploadStatus.textContent = 'Starting upload...';
+        uploadNextFile(0);
+      });
+      
+      newFolderBtn.addEventListener('click', showNewFolderModal);
+      newFolderModalClose.addEventListener('click', closeNewFolderModal);
+      cancelFolderBtn.addEventListener('click', closeNewFolderModal);
+      
+      createFolderBtn.addEventListener('click', () => {
+        const folderName = folderNameInput.value.trim();
+        if (folderName) {
+          createFolder(folderName);
+        }
+      });
+      
+      folderNameInput.addEventListener('keyup', e => {
+        if (e.key === 'Enter') {
+          createFolderBtn.click();
+        }
+      });
+      
+      deleteModalClose.addEventListener('click', closeDeleteModal);
+      cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+      
+      renameModalClose.addEventListener('click', closeRenameModal);
+      cancelRenameBtn.addEventListener('click', closeRenameModal);
+      
+      newNameInput.addEventListener('keyup', e => {
+        if (e.key === 'Enter') {
+          confirmRenameBtn.click();
+        }
+      });
+      
+      // Context menu actions
+      contextOpen.addEventListener('click', () => {
+        if (contextMenuTarget && contextMenuTarget.isDirectory) {
+          currentPath = currentPath + '/' + contextMenuTarget.name;
+          loadDirectory(currentPath);
+        }
+      });
+      
+      contextDownload.addEventListener('click', () => {
+        if (contextMenuTarget && !contextMenuTarget.isDirectory) {
+          downloadFile(contextMenuTarget);
+        }
+      });
+      
+      contextRename.addEventListener('click', () => {
+        if (contextMenuTarget) {
+          showRenameModal(contextMenuTarget);
+        }
+      });
+      
+      contextDelete.addEventListener('click', () => {
+        if (contextMenuTarget) {
+          deleteFiles([contextMenuTarget]);
+        }
+      });
+      
+      // Bulk action buttons
+      downloadSelectedBtn.addEventListener('click', downloadSelectedFiles);
+      zipSelectedBtn.addEventListener('click', zipSelectedFiles);
+      deleteSelectedBtn.addEventListener('click', () => {
+        if (selectedFiles.length > 0) {
+          deleteFiles(selectedFiles);
+        }
+      });
+      
+      // Close context menu when clicking outside
+      document.addEventListener('click', e => {
+        if (!contextMenu.contains(e.target)) {
+          contextMenu.classList.remove('active');
+        }
+      });
+      
+      // Hide context menu when scrolling
+      document.addEventListener('scroll', () => {
+        contextMenu.classList.remove('active');
+      });
+      
+      // Keyboard shortcuts
+      document.addEventListener('keydown', e => {
+        // Escape key closes modals
+        if (e.key === 'Escape') {
+          closeUploadModal();
+          closeNewFolderModal();
+          closeDeleteModal();
+          closeRenameModal();
+          contextMenu.classList.remove('active');
+        }
+        
+        // Ctrl+A for select all
+        if (e.ctrlKey && e.key === 'a' && !e.target.closest('input')) {
+          e.preventDefault();
+          selectAllFiles();
+        }
+        
+        // Delete key
+        if (e.key === 'Delete' && selectedFiles.length > 0) {
+          deleteFiles(selectedFiles);
+        }
+        
+        // F2 for rename (when one file is selected)
+        if (e.key === 'F2' && selectedFiles.length === 1) {
+          e.preventDefault();
+          showRenameModal(selectedFiles[0]);
+        }
+        
+        // F5 for refresh
+        if (e.key === 'F5') {
+          e.preventDefault();
+          loadDirectory(currentPath);
+        }
+        
+        // Backspace for parent directory
+        if (e.key === 'Backspace' && !e.target.closest('input')) {
+          if (currentPath !== '/') {
+            e.preventDefault();
+            parentDirBtn.click();
+          }
+        }
+      });
+      
+      // Initial setup
+      socket.on('connect', () => {
+        console.log('Socket.IO connected');
+      });
+      
+      socket.on('connect_error', (error) => {
+        console.error('Socket.IO connection error:', error);
+        showToast('Connection error: ' + error.message, 'error');
+      });
+    });
+  </script>
+</body>
+</html>
