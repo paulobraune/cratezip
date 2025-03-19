@@ -660,6 +660,13 @@
       transform: translateY(0);
       pointer-events: all;
     }
+
+    /* Monaco Editor styles */
+    #monaco-editor {
+      width: 100%;
+      height: 100%;
+      border: 1px solid var(--gray-300);
+    }
   </style>
 </head>
 <body>
@@ -934,6 +941,26 @@
   
   <!-- Toast container -->
   <div class="toast-container" id="toast-container"></div>
+
+  <!-- Monaco Editor Modal -->
+  <div class="modal" id="editor-modal">
+    <div class="modal-content" style="width: 90%; max-width: 1200px; height: 80vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="editor-filename">File Editor</h3>
+        <button class="modal-close" id="editor-modal-close">&times;</button>
+      </div>
+      <div style="flex: 1; position: relative; min-height: 0;">
+        <div id="monaco-editor" style="width: 100%; height: 100%; border: 1px solid var(--gray-300);"></div>
+      </div>
+      <div class="modal-footer">
+        <div style="margin-right: auto; color: var(--gray-600);">
+          <span id="editor-language"></span> | <span id="editor-size"></span>
+        </div>
+        <button class="btn" id="cancel-edit-btn">Cancel</button>
+        <button class="btn btn-primary" id="save-file-btn">Save</button>
+      </div>
+    </div>
+  </div>
   
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -953,6 +980,11 @@
       let filesList = [];
       let selectedFiles = [];
       let clipboard = null;
+      
+      // Monaco Editor variables
+      let editor = null;
+      let currentEditingFile = null;
+      let monacoLoaded = false;
       
       // DOM Elements
       const pathBreadcrumb = document.getElementById('path-breadcrumb');
@@ -1076,6 +1108,10 @@
       
       socket.on('zip-complete', (data) => {
         console.log('Zip file created:', data.path);
+      });
+
+      socket.on('file-saved', () => {
+        showToast('File saved successfully', 'success');
       });
       
       // Utility functions
@@ -1295,8 +1331,8 @@
               currentPath = fileItem.dataset.path;
               loadDirectory(currentPath);
             } else {
-              // For files, we could show a preview or download
-              downloadFile(file);
+              // For files, open in editor if editable
+              openFileInEditor(file);
             }
           });
           
@@ -1757,15 +1793,19 @@
           socket.once('zip-complete', (data) => {
             console.log('Zip creation completed, renaming file');
             
+            // Create a timestamp-based filename
+            const timestamp = Date.now();
+            const newZipName = `archive_${timestamp}.zip`;
+            
             // After zip is complete, rename the file
             socket.emit('rename-file', {
               oldPath: tempDirPath + '.zip',
-              newPath: currentPath + '/archive.zip'
+              newPath: currentPath + '/' + newZipName
             });
             
             // Set up a one-time listener for rename completion
             socket.once('rename-complete', () => {
-              console.log('Renaming completed, deleting temp directory');
+              console.log('Renaming completed to', newZipName);
               
               // After renaming, delete the temp directory
               socket.emit('delete-file', {
@@ -1774,7 +1814,7 @@
               });
               
               // Refresh the file list
-              showToast('Archive created successfully', 'success');
+              showToast(`Archive created as ${newZipName}`, 'success');
               loadDirectory(currentPath);
             });
           });
@@ -1792,6 +1832,248 @@
             }
           });
         }
+      }
+      
+      // Monaco Editor functions
+      // Function to determine if a file is editable based on extension
+      function isEditableFile(filename) {
+        const editableExtensions = [
+          // Code files
+          'js', 'jsx', 'ts', 'tsx', 'html', 'htm', 'css', 'scss', 'sass', 'less',
+          'php', 'py', 'java', 'c', 'cpp', 'h', 'cs', 'go', 'rb', 'pl', 'swift',
+          // Config files
+          'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'conf', 'config',
+          // Text files
+          'txt', 'md', 'markdown', 'rst', 'log', 'csv', 'tsv',
+          // Shell scripts
+          'sh', 'bash', 'zsh', 'bat', 'cmd',
+          // Other common editable files
+          'sql', 'graphql', 'dockerfile', 'env'
+        ];
+        
+        const extension = filename.split('.').pop().toLowerCase();
+        return editableExtensions.includes(extension);
+      }
+
+      // Function to get language ID for Monaco editor based on file extension
+      function getLanguageFromFilename(filename) {
+        const extension = filename.split('.').pop().toLowerCase();
+        
+        const languageMap = {
+          'js': 'javascript',
+          'jsx': 'javascript',
+          'ts': 'typescript',
+          'tsx': 'typescript',
+          'html': 'html',
+          'htm': 'html',
+          'css': 'css',
+          'scss': 'scss',
+          'sass': 'scss',
+          'less': 'less',
+          'json': 'json',
+          'xml': 'xml',
+          'yaml': 'yaml',
+          'yml': 'yaml',
+          'md': 'markdown',
+          'markdown': 'markdown',
+          'py': 'python',
+          'c': 'c',
+          'cpp': 'cpp',
+          'h': 'cpp',
+          'java': 'java',
+          'cs': 'csharp',
+          'php': 'php',
+          'rb': 'ruby',
+          'go': 'go',
+          'pl': 'perl',
+          'sql': 'sql',
+          'sh': 'shell',
+          'bash': 'shell',
+          'zsh': 'shell',
+          'bat': 'bat',
+          'cmd': 'bat',
+          'dockerfile': 'dockerfile',
+          'graphql': 'graphql',
+          'swift': 'swift',
+          'ini': 'ini',
+          'toml': 'ini',
+          'txt': 'plaintext',
+          'log': 'plaintext',
+          'csv': 'plaintext',
+          'tsv': 'plaintext'
+        };
+        
+        return languageMap[extension] || 'plaintext';
+      }
+
+      // Load Monaco Editor
+      function loadMonacoEditor() {
+        if (monacoLoaded) return Promise.resolve();
+        
+        return new Promise((resolve, reject) => {
+          // Load Monaco Editor script
+          const script = document.createElement('script');
+          script.src = '/monaco-editor/min/vs/loader.js';
+          script.onload = () => {
+            require.config({ paths: { 'vs': '/monaco-editor/min/vs' }});
+            
+            require(['vs/editor/editor.main'], () => {
+              monacoLoaded = true;
+              resolve();
+            });
+          };
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
+
+      // Initialize Monaco Editor
+      async function initMonacoEditor() {
+        if (!monacoLoaded) {
+          try {
+            await loadMonacoEditor();
+          } catch (error) {
+            console.error('Failed to load Monaco Editor:', error);
+            showToast('Failed to load code editor. Please try again.', 'error');
+            return false;
+          }
+        }
+        
+        if (!editor) {
+          editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+            automaticLayout: true,
+            theme: 'vs-dark',
+            minimap: { enabled: true },
+            scrollBeyondLastLine: false,
+            fontSize: 14,
+            lineNumbers: 'on',
+            wordWrap: 'on'
+          });
+        }
+        
+        return true;
+      }
+
+      // Open a file in the editor
+      async function openFileInEditor(file) {
+        const filePath = currentPath + '/' + file.name;
+        
+        // Check if file is editable
+        if (!isEditableFile(file.name)) {
+          // If not editable, fall back to download
+          downloadFile(file);
+          return;
+        }
+        
+        // Show loading state
+        showToast('Loading file...', 'info');
+        
+        try {
+          // Initialize editor
+          const editorReady = await initMonacoEditor();
+          if (!editorReady) return;
+          
+          // Fetch file content
+          socket.emit('read-file', { path: filePath });
+          
+          // Create a promise to wait for file content
+          const fileContent = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              reject(new Error('Timeout waiting for file content'));
+            }, 10000); // 10 second timeout
+            
+            socket.once('file-content', (data) => {
+              clearTimeout(timeout);
+              if (data.path === filePath) {
+                resolve(data.content);
+              } else {
+                // If paths don't match, keep waiting
+                socket.once('file-content', (data2) => {
+                  if (data2.path === filePath) {
+                    resolve(data2.content);
+                  } else {
+                    reject(new Error('Received content for wrong file'));
+                  }
+                });
+              }
+            });
+            
+            socket.once('sftp-error', (error) => {
+              clearTimeout(timeout);
+              reject(new Error(error));
+            });
+          });
+          
+          // Set current editing file
+          currentEditingFile = file;
+          
+          // Set editor title and info
+          document.getElementById('editor-filename').textContent = file.name;
+          document.getElementById('editor-language').textContent = getLanguageFromFilename(file.name);
+          document.getElementById('editor-size').textContent = formatSize(file.size);
+          
+          // Set editor language and content
+          const model = monaco.editor.createModel(
+            fileContent,
+            getLanguageFromFilename(file.name)
+          );
+          
+          editor.setModel(model);
+          
+          // Show editor modal
+          document.getElementById('editor-modal').style.display = 'flex';
+          editor.focus();
+          
+        } catch (error) {
+          console.error('Error opening file:', error);
+          showToast('Failed to open file: ' + error.message, 'error');
+        }
+      }
+
+      // Save file content
+      function saveFileContent() {
+        if (!currentEditingFile) return;
+        
+        const filePath = currentPath + '/' + currentEditingFile.name;
+        const content = editor.getValue();
+        
+        showToast('Saving file...', 'info');
+        
+        socket.emit('save-file', {
+          path: filePath,
+          content: content
+        });
+        
+        // Listen for save completion
+        socket.once('file-saved', () => {
+          showToast('File saved successfully', 'success');
+        });
+        
+        // Listen for errors
+        socket.once('sftp-error', (error) => {
+          showToast('Failed to save file: ' + error, 'error');
+        });
+      }
+
+      // Close editor modal
+      function closeEditorModal() {
+        document.getElementById('editor-modal').style.display = 'none';
+        currentEditingFile = null;
+      }
+
+      // Add event listeners for editor modal
+      function setupEditorListeners() {
+        document.getElementById('editor-modal-close').addEventListener('click', closeEditorModal);
+        document.getElementById('cancel-edit-btn').addEventListener('click', closeEditorModal);
+        document.getElementById('save-file-btn').addEventListener('click', saveFileContent);
+        
+        // Add keyboard shortcut for saving (Ctrl+S)
+        document.addEventListener('keydown', (e) => {
+          if (e.ctrlKey && e.key.toLowerCase() === 's' && document.getElementById('editor-modal').style.display === 'flex') {
+            e.preventDefault();
+            saveFileContent();
+          }
+        });
       }
       
       // Event listeners
@@ -1861,7 +2143,7 @@
         progressBar.style.width = '0%';
         
         let uploadedCount = 0;
-const totalFiles = fileInput.files.length;
+        const totalFiles = fileInput.files.length;
         
         function uploadNextFile(index) {
           if (index >= totalFiles) {
@@ -2017,6 +2299,9 @@ const totalFiles = fileInput.files.length;
           }
         }
       });
+      
+      // Initialize the editor listeners
+      setupEditorListeners();
       
       // Initial setup
       socket.on('connect', () => {
