@@ -1,5 +1,8 @@
 FROM node:18-alpine
 
+# Instalar dependências do sistema, incluindo zip
+RUN apk add --no-cache zip
+
 # Create app directory
 WORKDIR /app
 
@@ -13,7 +16,7 @@ RUN npm install
 COPY . .
 
 # Expose the port the app runs on
-EXPOSE 3000
+EXPOSE 5005
 
 # Command to run the application
 CMD ["node", "server.js"]
