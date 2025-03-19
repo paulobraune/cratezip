@@ -1074,6 +1074,10 @@
         showToast('Creating ZIP file...', 'info');
       });
       
+      socket.on('zip-complete', (data) => {
+        console.log('Zip file created:', data.path);
+      });
+      
       // Utility functions
       function loadDirectory(path) {
         socket.emit('list-directory', { path });
@@ -1749,15 +1753,21 @@
           // Now create a ZIP of the temp directory
           socket.emit('zip-directory', { path: tempDirPath });
           
-          // Rename the resulting ZIP file to archive.zip
-          setTimeout(() => {
+          // Set up a one-time listener for zip completion
+          socket.once('zip-complete', (data) => {
+            console.log('Zip creation completed, renaming file');
+            
+            // After zip is complete, rename the file
             socket.emit('rename-file', {
               oldPath: tempDirPath + '.zip',
               newPath: currentPath + '/archive.zip'
             });
             
-            // Delete the temp directory
-            setTimeout(() => {
+            // Set up a one-time listener for rename completion
+            socket.once('rename-complete', () => {
+              console.log('Renaming completed, deleting temp directory');
+              
+              // After renaming, delete the temp directory
               socket.emit('delete-file', {
                 path: tempDirPath,
                 isDirectory: true
@@ -1766,8 +1776,21 @@
               // Refresh the file list
               showToast('Archive created successfully', 'success');
               loadDirectory(currentPath);
-            }, 500);
-          }, 1000);
+            });
+          });
+          
+          // Add an error handler for zip failures
+          socket.once('sftp-error', (errorMsg) => {
+            if (errorMsg.includes('Failed to create zip')) {
+              showToast('Failed to create zip: ' + errorMsg, 'error');
+              
+              // Clean up temp directory on error
+              socket.emit('delete-file', {
+                path: tempDirPath,
+                isDirectory: true
+              });
+            }
+          });
         }
       }
       
@@ -1838,7 +1861,7 @@
         progressBar.style.width = '0%';
         
         let uploadedCount = 0;
-        const totalFiles = fileInput.files.length;
+const totalFiles = fileInput.files.length;
         
         function uploadNextFile(index) {
           if (index >= totalFiles) {
